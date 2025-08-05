@@ -239,11 +239,7 @@ class CellIndexMethod:
                         static_data="static_data.txt", 
                         filename="simulation2.gif"):
         """Creates animation from saved data files including neighbor connections"""
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as patches
-        from matplotlib.animation import FuncAnimation
-        from IPython.display import Image
-        
+    
         with open(static_data, 'r') as f:
             self.N = int(f.readline())
             self.L = float(f.readline())
