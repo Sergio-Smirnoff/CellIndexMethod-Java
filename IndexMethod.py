@@ -260,7 +260,7 @@ class CellIndexMethod:
             print(f"Animación guardada como {filename}")
             return None
 
-def compare_methods(L=10, rc=1.5, N_range=range(50, 1001, 50), M=10):
+def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     """Compara el tiempo de ejecución de CIM vs fuerza bruta"""
     cim_times = []
     brute_times = []
@@ -319,4 +319,4 @@ if __name__ == "__main__":
     compare_methods()
     
     # Opcional: Crear animación (descomentar para ejecutar)
-    ani = sim.animate_simulation(frames=100, interval=50)
+    ani = sim.animate_simulation(frames=300, interval=50)
