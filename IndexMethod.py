@@ -67,6 +67,7 @@ class CellIndexMethod:
                     ny = (cell_y + dy) % self.M
                     neighbor_cells.append((nx, ny))
             
+
             neighbor_cells = list(set(neighbor_cells))
             
             for other_cell in neighbor_cells:
@@ -233,6 +234,103 @@ class CellIndexMethod:
             print(f"Animación guardada como {filename}")
             return None
 
+    def animate_simulation_from_data(self, frames=50, interval=100, 
+                        dynamic_data="dynamic_data.txt", 
+                        static_data="static_data.txt", 
+                        filename="simulation2.gif"):
+        """Creates animation from saved data files including neighbor connections"""
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+        from matplotlib.animation import FuncAnimation
+        from IPython.display import Image
+        
+        with open(static_data, 'r') as f:
+            self.N = int(f.readline())
+            self.L = float(f.readline())
+            self.radii = []
+            self.colors = []
+            for _ in range(self.N):
+                parts = f.readline().split()
+                self.radii.append(float(parts[0]))
+                self.colors.append([float(c)/255 for c in parts[1:4]])
+        
+        with open(dynamic_data, 'r') as f:
+            frames_data = []
+            current_frame = []
+            for line in f:
+                if line.startswith('t'):
+                    if current_frame:
+                        frames_data.append(current_frame)
+                        current_frame = []
+                else:
+                    parts = list(map(float, line.split()))
+                    current_frame.append(parts)
+            if current_frame:
+                frames_data.append(current_frame)
+        
+        fig, ax = plt.subplots(figsize=(10, 10))
+        particles = []
+        neighbor_lines = []
+        
+        for i in range(self.N):
+            circle = patches.Circle((0, 0), self.radii[i], 
+                                color=self.colors[i], alpha=0.7)
+            ax.add_patch(circle)
+            particles.append(circle)
+        
+        if hasattr(self, 'M'):
+            for i in range(self.M+1):
+                ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+                ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+        
+        ax.set_xlim(0, self.L)
+        ax.set_ylim(0, self.L)
+        ax.set_aspect('equal')
+        ax.set_title(f"Simulation (N={self.N}, L={self.L})")
+
+        def update(frame_num):
+            frame_data = frames_data[frame_num % len(frames_data)]
+            
+            for i, (x, y, vx, vy) in enumerate(frame_data):
+                particles[i].center = (x, y)
+            
+            for line in neighbor_lines:
+                line.remove()
+            neighbor_lines.clear()
+            
+            for i in range(self.N):
+                for j in range(i+1, self.N):
+                    xi, yi, _, _ = frame_data[i]
+                    xj, yj, _, _ = frame_data[j]
+                    
+                    # Periodic boundary conditions
+                    dx = xj - xi
+                    dy = yj - yi
+                    dx = dx - round(dx/self.L)*self.L
+                    dy = dy - round(dy/self.L)*self.L
+                    distance = (dx**2 + dy**2)**0.5
+                    
+                    if distance < self.rc + self.radii[i] + self.radii[j]:
+                        line, = ax.plot([xi, xi+dx], [yi, yi+dy], 
+                                    'r-', alpha=0.3, lw=1)
+                        neighbor_lines.append(line)
+            
+            return particles + neighbor_lines
+        
+        ani = FuncAnimation(fig, update, frames=min(frames, len(frames_data)), 
+                        interval=interval, blit=True)
+        
+        print(f"Saving animation to {filename}...")
+        ani.save(filename, writer='pillow', fps=1000/interval, dpi=100)
+        plt.close(fig)
+        
+        try:
+            from IPython.display import Image
+            return Image(filename=filename)
+        except:
+            print(f"Animation saved to {filename}")
+        return None 
+
 def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     cim_times = []
     brute_times = []
@@ -280,4 +378,5 @@ if __name__ == "__main__":
     
     compare_methods()
     
-    ani = sim.animate_simulation(frames=300, interval=50)
+    #ani = sim.animate_simulation(frames=300, interval=50)
+    ani2 = sim.animate_simulation_from_data()
