@@ -360,6 +360,36 @@ def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     plt.grid(True)
     plt.show()
 
+def compare_methodsCells(L=20, rc=1.5, M_range=range(1, 15), N=100):
+    cim_times = []
+    brute_times = []
+    
+    for M in M_range:
+        print(f"Probando con M = {M}...")
+        sim = CellIndexMethod(L, rc, N, M)
+        
+        start = time.time()
+        sim.assign_to_cells()
+        sim.find_neighbors()
+        cim_time = time.time() - start
+        cim_times.append(cim_time)
+        
+        start = time.time()
+        sim.brute_force_neighbors()
+        brute_time = time.time() - start
+        brute_times.append(brute_time)
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(M_range, brute_times, 'r-', label='Fuerza Bruta (O(N²))')
+    plt.plot(M_range, cim_times, 'b-', label='Cell Index Method (O(N))')
+    plt.xlabel('Número de celdas (M)')
+    plt.ylabel('Tiempo de ejecución (s)')
+    plt.title('Comparación de métodos de detección de vecinos')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    plt.savefig("comparacion_metodos.png", dpi=150)
+
 if __name__ == "__main__":
     L = 20.0
     rc = 2.0
@@ -376,7 +406,7 @@ if __name__ == "__main__":
     
     sim.visualize()
     
-    compare_methods()
+    compare_methodsCells()
     
     #ani = sim.animate_simulation(frames=300, interval=50)
     ani2 = sim.animate_simulation_from_data()
