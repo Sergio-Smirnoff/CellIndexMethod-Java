@@ -54,38 +54,34 @@ class CellIndexMethod:
             self.cells[(cell_x, cell_y)].append(idx)
     
     def find_neighbors(self):
-        """Encuentra vecinos usando CIM"""
-        self.neighbors = { i: [] for i in range(self.N) }
-        
+        """Encuentra vecinos usando CIM sin repetir pares de celdas"""
+        self.neighbors = {i: [] for i in range(self.N)}
+        checked_cells = set()
+
         for (cell_x, cell_y), particles in self.cells.items():
             # Obtener celdas vecinas (incluyendo la actual)
-            neighbor_cells = []
             for dx in [-1, 0, 1]:
                 for dy in [-1, 0, 1]:
-                    # Condiciones periódicas de contorno
                     nx = (cell_x + dx) % self.M
                     ny = (cell_y + dy) % self.M
-                    neighbor_cells.append((nx, ny))
-            
+                    cell_pair = tuple(sorted([(cell_x, cell_y), (nx, ny)]))
+                    if cell_pair in checked_cells:
+                        continue
+                    checked_cells.add(cell_pair)
 
-            neighbor_cells = list(set(neighbor_cells))
-            
-            for other_cell in neighbor_cells:
-                for j in self.cells.get(other_cell, []):
+                    other_particles = self.cells.get((nx, ny), [])
                     for i in particles:
-                        if i < j:
-                            dx = self.positions[i,0] - self.positions[j,0]
-                            dy = self.positions[i,1] - self.positions[j,1]
-                            
-                            dx = dx - round(dx / self.L) * self.L
-                            dy = dy - round(dy / self.L) * self.L
-                            
-                            distance = np.sqrt(dx**2 + dy**2)
-                            min_distance = distance - self.radii[i] - self.radii[j]
-                            
-                            if min_distance < self.rc:
-                                self.neighbors[i].append(j)
-                                self.neighbors[j].append(i)
+                        for j in other_particles:
+                            if i < j:
+                                dx_ = self.positions[i, 0] - self.positions[j, 0]
+                                dy_ = self.positions[i, 1] - self.positions[j, 1]
+                                dx_ = dx_ - round(dx_ / self.L) * self.L
+                                dy_ = dy_ - round(dy_ / self.L) * self.L
+                                distance = np.sqrt(dx_ ** 2 + dy_ ** 2)
+                                min_distance = distance - self.radii[i] - self.radii[j]
+                                if min_distance < self.rc:
+                                    self.neighbors[i].append(j)
+                                    self.neighbors[j].append(i)
     
     def brute_force_neighbors(self):
         neighbors = { i: [] for i in range(self.N) }
