@@ -4,6 +4,7 @@ import matplotlib.patches as patches
 from matplotlib.animation import FuncAnimation
 from itertools import product
 import time
+import datetime
 from IPython.display import HTML
 
 class CellIndexMethod:
@@ -53,35 +54,39 @@ class CellIndexMethod:
             
             self.cells[(cell_x, cell_y)].append(idx)
     
-    def find_neighbors(self):
-        """Encuentra vecinos usando CIM sin repetir pares de celdas"""
+    def find_neighbors(self, periodic=False):
+        """Encuentra vecinos usando CIM, con opción de condiciones periódicas"""
         self.neighbors = {i: [] for i in range(self.N)}
-        checked_cells = set()
+        checked_pairs = set()
 
         for (cell_x, cell_y), particles in self.cells.items():
-            # Obtener celdas vecinas (incluyendo la actual)
+            # Recorre la celda y sus vecinas (incluyendo sí misma)
             for dx in [-1, 0, 1]:
                 for dy in [-1, 0, 1]:
-                    nx = (cell_x + dx) % self.M
-                    ny = (cell_y + dy) % self.M
-                    cell_pair = tuple(sorted([(cell_x, cell_y), (nx, ny)]))
-                    if cell_pair in checked_cells:
-                        continue
-                    checked_cells.add(cell_pair)
-
-                    other_particles = self.cells.get((nx, ny), [])
+                    if periodic:
+                        neighbor_x = (cell_x + dx) % self.M
+                        neighbor_y = (cell_y + dy) % self.M
+                    else:
+                        neighbor_x = cell_x + dx
+                        neighbor_y = cell_y + dy
+                        if not (0 <= neighbor_x < self.M and 0 <= neighbor_y < self.M):
+                            continue
+                    neighbor_particles = self.cells.get((neighbor_x, neighbor_y), [])
                     for i in particles:
-                        for j in other_particles:
-                            if i < j:
-                                dx_ = self.positions[i, 0] - self.positions[j, 0]
-                                dy_ = self.positions[i, 1] - self.positions[j, 1]
-                                dx_ = dx_ - round(dx_ / self.L) * self.L
-                                dy_ = dy_ - round(dy_ / self.L) * self.L
-                                distance = np.sqrt(dx_ ** 2 + dy_ ** 2)
+                        for j in neighbor_particles:
+                            if i < j and (i, j) not in checked_pairs:
+                                # Calcular distancia considerando condiciones periódicas si corresponde
+                                dx_pos = self.positions[i, 0] - self.positions[j, 0]
+                                dy_pos = self.positions[i, 1] - self.positions[j, 1]
+                                if periodic:
+                                    dx_pos = dx_pos - round(dx_pos / self.L) * self.L
+                                    dy_pos = dy_pos - round(dy_pos / self.L) * self.L
+                                distance = np.sqrt(dx_pos**2 + dy_pos**2)
                                 min_distance = distance - self.radii[i] - self.radii[j]
                                 if min_distance < self.rc:
                                     self.neighbors[i].append(j)
                                     self.neighbors[j].append(i)
+                                checked_pairs.add((i, j))
     
     def brute_force_neighbors(self):
         neighbors = { i: [] for i in range(self.N) }
@@ -160,6 +165,7 @@ class CellIndexMethod:
         ax.set_aspect('equal')
         ax.set_title(f"Cell Index Method (M={self.M}, rc={self.rc})")
         plt.show()
+        plt.savefig("cim_visualization.png", dpi=150)
     
         
     def animate_simulation(self, frames=50, interval=100, filename="simulation.gif"):
@@ -326,6 +332,9 @@ class CellIndexMethod:
 def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     cim_times = []
     brute_times = []
+
+    file = open("./times/tiemposyN.txt", "w")
+    file.write("N\tTiempo (s)\n")
     
     for N in N_range:
         print(f"Probando con N = {N}...")
@@ -336,6 +345,8 @@ def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
         sim.find_neighbors()
         cim_time = time.time() - start
         cim_times.append(cim_time)
+
+        file.write(f"{N}\t{cim_time:.4f}\n")
         
         start = time.time()
         sim.brute_force_neighbors()
@@ -352,9 +363,12 @@ def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     plt.grid(True)
     plt.show()
 
-def compare_methodsCells(L=20, rc=1.5, M_range=range(1, 15), N=100):
+def compare_methodsCells(L=20, rc=1.5, M_range=range(1, 20), N=100):
     cim_times = []
     brute_times = []
+
+    file = open(f"./times/tiemposyM{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt", "w")
+    file.write("M\tTiempo (s)\n")
     
     for M in M_range:
         print(f"Probando con M = {M}...")
@@ -365,7 +379,8 @@ def compare_methodsCells(L=20, rc=1.5, M_range=range(1, 15), N=100):
         sim.find_neighbors()
         cim_time = time.time() - start
         cim_times.append(cim_time)
-        
+        file.write(f"{M}\t{cim_time:.4f}\n")
+
         start = time.time()
         sim.brute_force_neighbors()
         brute_time = time.time() - start
