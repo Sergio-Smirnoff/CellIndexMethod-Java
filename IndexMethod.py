@@ -75,7 +75,7 @@ class CellIndexMethod:
                         if distance - (self.radii[i] + self.radii[j]) < self.rc:
                             self.neighbors[i].append(j)
                             self.neighbors[j].append(i)
-        
+        """
         with open("vecinos.txt", 'w') as f:
             f.write("Particle Neighbors List\n")
             f.write(f"System Parameters: M={self.M}, rc={self.rc}, L={self.L}\n")
@@ -83,7 +83,7 @@ class CellIndexMethod:
             
             for particle_id in sorted(self.neighbors.keys()):
                 neighbors = sorted(self.neighbors[particle_id])
-                f.write(f"{particle_id}: {neighbors}\n")
+                f.write(f"{particle_id}: {neighbors}\n")"""
             
     def brute_force_neighbors(self):
         neighbors = { i: [] for i in range(self.N) }
@@ -102,7 +102,7 @@ class CellIndexMethod:
                 if min_distance < self.rc:
                     neighbors[i].append(j)
                     neighbors[j].append(i)
-        
+
         return neighbors
     
     def update_positions(self, dt=0.1):
@@ -286,7 +286,7 @@ class CellIndexMethod:
         ani.save(filename, writer='pillow', fps=1000/interval, dpi=100)
         plt.close(fig)
 
-def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
+def compare_methods(L=100, rc=3, N_range=range(50, 1001, 50), M=10):
     cim_times = []
     brute_times = []
 
@@ -320,7 +320,7 @@ def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     plt.grid(True)
     plt.show()
 
-def compare_methodsCells(L=20, rc=1.5, M_range=range(1, 20), N=100):
+def compare_methodsCells(L=100, rc=3, M_range=range(1, 20), N=300):
     cim_times = []
     brute_times = []
 
