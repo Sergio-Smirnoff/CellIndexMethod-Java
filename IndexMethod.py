@@ -53,41 +53,60 @@ class CellIndexMethod:
             cell_y = cell_y % self.M
             
             self.cells[(cell_x, cell_y)].append(idx)
-    
-    def find_neighbors(self, periodic=False):
-        """Encuentra vecinos usando CIM, con opción de condiciones periódicas"""
+
+    def find_neighbors(self, periodic=False, output_file=None):
         self.neighbors = {i: [] for i in range(self.N)}
-        checked_pairs = set()
+        
+        self.cells = {}
+        for i in range(self.M):
+            for j in range(self.M):
+                self.cells[(i, j)] = []
+        
+        for idx in range(self.N):
+            cell_x = int(self.positions[idx, 0] / self.cell_size) % self.M
+            cell_y = int(self.positions[idx, 1] / self.cell_size) % self.M
+            self.cells[(cell_x, cell_y)].append(idx)
 
         for (cell_x, cell_y), particles in self.cells.items():
-            # Recorre la celda y sus vecinas (incluyendo sí misma)
-            for dx in [-1, 0, 1]:
-                for dy in [-1, 0, 1]:
-                    if periodic:
-                        neighbor_x = (cell_x + dx) % self.M
-                        neighbor_y = (cell_y + dy) % self.M
-                    else:
-                        neighbor_x = cell_x + dx
-                        neighbor_y = cell_y + dy
-                        if not (0 <= neighbor_x < self.M and 0 <= neighbor_y < self.M):
+            for dx, dy in [(-1,-1), (-1,0), (-1,1),
+                        (0,-1), (0,0), (0,1),
+                        (1,-1), (1,0), (1,1)]:
+                
+                nx, ny = cell_x + dx, cell_y + dy
+                if not (0 <= nx < self.M and 0 <= ny < self.M):
+                    continue
+                
+                neighbor_particles = self.cells.get((nx, ny), [])
+                
+                for i in particles:
+                    for j in neighbor_particles:
+                        if i >= j:
                             continue
-                    neighbor_particles = self.cells.get((neighbor_x, neighbor_y), [])
-                    for i in particles:
-                        for j in neighbor_particles:
-                            if i < j and (i, j) not in checked_pairs:
-                                # Calcular distancia considerando condiciones periódicas si corresponde
-                                dx_pos = self.positions[i, 0] - self.positions[j, 0]
-                                dy_pos = self.positions[i, 1] - self.positions[j, 1]
-                                if periodic:
-                                    dx_pos = dx_pos - round(dx_pos / self.L) * self.L
-                                    dy_pos = dy_pos - round(dy_pos / self.L) * self.L
-                                distance = np.sqrt(dx_pos**2 + dy_pos**2)
-                                min_distance = distance - self.radii[i] - self.radii[j]
-                                if min_distance < self.rc:
-                                    self.neighbors[i].append(j)
-                                    self.neighbors[j].append(i)
-                                checked_pairs.add((i, j))
-    
+                        
+                        dx_pos = self.positions[j, 0] - self.positions[i, 0]
+                        dy_pos = self.positions[j, 1] - self.positions[i, 1]                        
+                        dx_pos -= round(dx_pos / self.L) * self.L
+                        dy_pos -= round(dy_pos / self.L) * self.L
+
+                        distance = np.sqrt(dx_pos**2 + dy_pos**2)
+                        edge_distance = distance - (self.radii[i] + self.radii[j])
+                        
+                        if edge_distance < self.rc:
+                            self.neighbors[i].append(j)
+                            self.neighbors[j].append(i)
+        
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write("Particle Neighbors List\n")
+                f.write(f"System Parameters: M={self.M}, rc={self.rc}, L={self.L}\n")
+                f.write(f"Periodic Boundaries: {periodic}\n")
+                f.write("\nParticle ID: Neighbors\n")
+                
+                for particle_id in sorted(self.neighbors.keys()):
+                    neighbors = sorted(self.neighbors[particle_id])
+                    f.write(f"{particle_id}: {neighbors}\n")
+            print(f"Neighbor list saved to {output_file}")
+            
     def brute_force_neighbors(self):
         neighbors = { i: [] for i in range(self.N) }
         
@@ -133,43 +152,47 @@ class CellIndexMethod:
                 self.assign_to_cells()
                 self.find_neighbors()
     
-    def visualize(self, show_neighbors=True):
+    def visualize(self, show_neighbors=True, show_indices=True, show_grid=True, save_path=None):
         fig, ax = plt.subplots(figsize=(10, 10))
         
-        for i in range(self.M+1):
-            ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.5)
-            ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.5)
+        if show_grid and hasattr(self, 'M'):
+            for i in range(self.M + 1):
+                ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+                ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
         
         for i in range(self.N):
-            circle = patches.Circle(self.positions[i], self.radii[i], 
-                                    color=self.colors[i], alpha=0.7)
+            circle = patches.Circle(
+                self.positions[i], 
+                self.radii[i],
+                color=self.colors[i] if hasattr(self, 'colors') else 'blue',
+                alpha=0.7
+            )
             ax.add_patch(circle)
-            ax.text(*self.positions[i], str(i), ha='center', va='center', fontsize=8)
+            
+            if show_indices:
+                ax.text(*self.positions[i], str(i), 
+                    ha='center', va='center', 
+                    fontsize=8, color='black')
         
-        if show_neighbors:
+        if show_neighbors and hasattr(self, 'neighbors'):
             for i in range(self.N):
                 for j in self.neighbors[i]:
                     if i < j:
-                        dx = self.positions[j,0] - self.positions[i,0]
-                        dy = self.positions[j,1] - self.positions[i,1]
-                        
-                        dx = dx - round(dx / self.L) * self.L
-                        dy = dy - round(dy / self.L) * self.L
-                        
-                        ax.plot([self.positions[i,0], self.positions[i,0]+dx],
-                                [self.positions[i,1], self.positions[i,1]+dy],
-                                'r-', alpha=0.3)
+                        ax.plot(
+                            [self.positions[i, 0], self.positions[j, 0]],
+                            [self.positions[i, 1], self.positions[j, 1]],
+                            'r-', alpha=0.3, linewidth=1
+                        )
         
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.L)
         ax.set_aspect('equal')
         ax.set_title(f"Cell Index Method (M={self.M}, rc={self.rc})")
-        plt.show()
-        plt.savefig("cim_visualization.png", dpi=150)
-    
         
+        plt.savefig("fig1.png", dpi=150, bbox_inches='tight')
+        plt.show()
+    
     def animate_simulation(self, frames=50, interval=100, filename="simulation.gif"):
-        """Crea y guarda una animación GIF que muestra las conexiones entre vecinos"""
         fig, ax = plt.subplots(figsize=(10, 10))
         
         particles = []
@@ -237,11 +260,9 @@ class CellIndexMethod:
             return None
 
     def animate_simulation_from_data(self, frames=50, interval=100, 
-                        dynamic_data="dynamic_data.txt", 
-                        static_data="static_data.txt", 
-                        filename="simulation2.gif"):
-        """Creates animation from saved data files including neighbor connections"""
-    
+                              dynamic_data="dynamic_data.txt", 
+                              static_data="static_data.txt", 
+                              filename="simulation_cim.gif"):
         with open(static_data, 'r') as f:
             self.N = int(f.readline())
             self.L = float(f.readline())
@@ -284,41 +305,62 @@ class CellIndexMethod:
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.L)
         ax.set_aspect('equal')
-        ax.set_title(f"Simulation (N={self.N}, L={self.L})")
+        ax.set_title(f"Simulation with CIM (N={self.N}, L={self.L}, rc={getattr(self, 'rc', '?')})")
 
         def update(frame_num):
             frame_data = frames_data[frame_num % len(frames_data)]
             
-            for i, (x, y, vx, vy) in enumerate(frame_data):
+            for i, (x, y, _, _) in enumerate(frame_data):
                 particles[i].center = (x, y)
             
             for line in neighbor_lines:
                 line.remove()
             neighbor_lines.clear()
             
-            for i in range(self.N):
-                for j in range(i+1, self.N):
-                    xi, yi, _, _ = frame_data[i]
-                    xj, yj, _, _ = frame_data[j]
+            if not hasattr(self, 'M') or not hasattr(self, 'rc'):
+                raise ValueError("Cell Index Method not initialized (missing M or rc)")
+            
+            cells = {}
+            for i in range(self.M):
+                for j in range(self.M):
+                    cells[(i, j)] = []
+            
+            for idx, (x, y, _, _) in enumerate(frame_data):
+                cell_x = int(x / self.cell_size) % self.M
+                cell_y = int(y / self.cell_size) % self.M
+                cells[(cell_x, cell_y)].append(idx)
+            
+            for (cell_x, cell_y), particles_in_cell in cells.items():
+                for dx, dy in [(-1,-1), (-1,0), (-1,1),
+                            (0,-1), (0,0), (0,1),
+                            (1,-1), (1,0), (1,1)]:
+                    nx, ny = (cell_x + dx) % self.M, (cell_y + dy) % self.M
                     
-                    # Periodic boundary conditions
-                    dx = xj - xi
-                    dy = yj - yi
-                    dx = dx - round(dx/self.L)*self.L
-                    dy = dy - round(dy/self.L)*self.L
-                    distance = (dx**2 + dy**2)**0.5
-                    
-                    if distance < self.rc + self.radii[i] + self.radii[j]:
-                        line, = ax.plot([xi, xi+dx], [yi, yi+dy], 
-                                    'r-', alpha=0.3, lw=1)
-                        neighbor_lines.append(line)
+                    for i in particles_in_cell:
+                        for j in cells.get((nx, ny), []):
+                            if i < j:
+                                xi, yi, _, _ = frame_data[i]
+                                xj, yj, _, _ = frame_data[j]
+                                
+                                dx_pos = xj - xi
+                                dy_pos = yj - yi
+                                dx_pos -= round(dx_pos / self.L) * self.L
+                                dy_pos -= round(dy_pos / self.L) * self.L
+                                
+                                distance = (dx_pos**2 + dy_pos**2)**0.5
+                                edge_distance = distance - (self.radii[i] + self.radii[j])
+                                
+                                if edge_distance < self.rc:
+                                    line, = ax.plot([xi, xi+dx_pos], [yi, yi+dy_pos],
+                                                'r-', alpha=0.3, lw=1)
+                                    neighbor_lines.append(line)
             
             return particles + neighbor_lines
         
         ani = FuncAnimation(fig, update, frames=min(frames, len(frames_data)), 
                         interval=interval, blit=True)
         
-        print(f"Saving animation to {filename}...")
+        print(f"Saving CIM animation to {filename}...")
         ani.save(filename, writer='pillow', fps=1000/interval, dpi=100)
         plt.close(fig)
         
@@ -327,7 +369,7 @@ class CellIndexMethod:
             return Image(filename=filename)
         except:
             print(f"Animation saved to {filename}")
-        return None 
+        return None
 
 def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     cim_times = []
