@@ -182,7 +182,7 @@ class CellIndexMethod:
         plt.savefig("fig1.png", dpi=150, bbox_inches='tight')
         plt.show()
         
-    def animate_simulation_from_data(self, frames=50, interval=100, 
+    def animate_simulation_from_data(self, frames=100, interval=1000, 
                                 dynamic_data="dynamic_data.txt", 
                                 static_data="static_data.txt", 
                                 filename="simulation_smooth.gif"):
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     
     sim.assign_to_cells()
     sim.save_static_info("static_data.txt")
-    sim.save_dynamic_info("dynamic_data.txt", steps=200, dt=0.05)
+    sim.save_dynamic_info("dynamic_data.txt", steps=800, dt=0.05)
 
     sim.find_neighbors()
     sim.visualize()
