@@ -194,73 +194,6 @@ class CellIndexMethod:
         plt.savefig("fig1.png", dpi=150, bbox_inches='tight')
         plt.show()
     
-    def animate_simulation(self, frames=50, interval=100, filename="simulation.gif"):
-        fig, ax = plt.subplots(figsize=(10, 10))
-        
-        particles = []
-        neighbor_lines = []
-        
-        for i in range(self.N):
-            circle = patches.Circle(self.positions[i], self.radii[i],
-                                color=self.colors[i], alpha=0.7)
-            ax.add_patch(circle)
-            particles.append(circle)
-        
-        for i in range(self.M+1):
-            ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.5)
-            ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.5)
-        
-        ax.set_xlim(0, self.L)
-        ax.set_ylim(0, self.L)
-        ax.set_aspect('equal')
-        ax.set_title(f"Simulación CIM (N={self.N}, rc={self.rc})")
-
-        def update(frame):
-            self.update_positions()
-            self.assign_to_cells()
-            self.find_neighbors()
-            
-            for i in range(self.N):
-                particles[i].center = self.positions[i]
-            
-            for line in neighbor_lines:
-                line.remove()
-            neighbor_lines.clear()
-            
-            for i in range(self.N):
-                for j in self.neighbors[i]:
-                    if i < j:
-                        dx = self.positions[j,0] - self.positions[i,0]
-                        dy = self.positions[j,1] - self.positions[i,1]
-                        
-                        dx = dx - round(dx/self.L)*self.L
-                        dy = dy - round(dy/self.L)*self.L
-                        
-                        line, = ax.plot(
-                            [self.positions[i,0], self.positions[i,0]+dx],
-                            [self.positions[i,1], self.positions[i,1]+dy],
-                            'r-', alpha=0.4, lw=1
-                        )
-                        neighbor_lines.append(line)
-            
-            return particles + neighbor_lines
-        
-        ani = FuncAnimation(
-            fig, update, frames=frames,
-            interval=interval, blit=True
-        )
-        
-        print(f"Guardando animación como {filename}...")
-        ani.save(filename, writer='pillow', fps=1000/interval, dpi=100)
-        plt.close(fig)
-        
-        try:
-            from IPython.display import Image
-            return Image(filename=filename)
-        except:
-            print(f"Animación guardada como {filename}")
-            return None
-
     def animate_simulation_from_data(self, frames=50, interval=100, 
                               dynamic_data="dynamic_data.txt", 
                               static_data="static_data.txt", 
@@ -464,5 +397,4 @@ if __name__ == "__main__":
     
     compare_methodsCells()
     
-    #ani = sim.animate_simulation(frames=300, interval=50)
     ani2 = sim.animate_simulation_from_data()
