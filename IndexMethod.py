@@ -318,6 +318,7 @@ def compare_methods(L=100, rc=3, N_range=range(50, 1001, 50), M=10):
     plt.title('Comparación de métodos de detección de vecinos')
     plt.legend()
     plt.grid(True)
+    plt.savefig("fig3.png", dpi=150, bbox_inches='tight')
     plt.show()
 
 def compare_methodsCells(L=100, rc=3, M_range=range(1, 20), N=300):
@@ -370,6 +371,7 @@ if __name__ == "__main__":
     sim.find_neighbors()
     sim.visualize()
     
+    compare_methods()
     compare_methodsCells()
     
     ani2 = sim.animate_simulation_from_data()
