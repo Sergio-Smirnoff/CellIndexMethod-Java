@@ -9,33 +9,21 @@ from IPython.display import HTML
 
 class CellIndexMethod:
     def __init__(self, L, rc, N=100, M=10):
-        """
-        Inicializa la simulación
-        
-        Parámetros:
-        L: tamaño del sistema (cuadrado LxL)
-        rc: radio de corte para vecinos
-        N: número de partículas
-        M: número de celdas por lado
-        """
         self.L = L
         self.rc = rc
         self.N = N
         self.M = M
         self.cell_size = L / M
         
-        # Verificar condición de tamaño de celda
         if self.cell_size < rc:
             print(f"Advertencia: Tamaño de celda ({self.cell_size}) menor que rc ({rc}).")
             print("Recomendación: Reducir M para que L/M > rc")
         
-        # Inicializar partículas
         self.positions = np.random.rand(N, 2) * L
         self.velocities = (np.random.rand(N, 2) - 0.5) * 2
         self.radii = np.random.uniform(0.1, 0.3, N)
         self.colors = np.random.rand(N, 3)
         
-        # Estructuras para el CIM
         self.cells = {}
         self.neighbors = {}
         
@@ -118,8 +106,7 @@ class CellIndexMethod:
         return neighbors
     
     def update_positions(self, dt=0.1):
-        self.positions += self.velocities * dt
-        
+        self.positions += self.velocities * dt   
         self.positions = self.positions % self.L
     
     def save_static_info(self, filename="static_info.txt"):
@@ -232,10 +219,9 @@ class CellIndexMethod:
             ax.add_patch(circle)
             particles.append(circle)
         
-        if hasattr(self, 'M'):
-            for i in range(self.M+1):
-                ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
-                ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+        for i in range(self.M+1):
+            ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+            ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
         
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.L)
@@ -251,9 +237,6 @@ class CellIndexMethod:
             for line in neighbor_lines:
                 line.remove()
             neighbor_lines.clear()
-            
-            if not hasattr(self, 'M') or not hasattr(self, 'rc'):
-                raise ValueError("Cell Index Method not initialized (missing M or rc)")
             
             cells = {}
             for i in range(self.M):
@@ -300,16 +283,8 @@ class CellIndexMethod:
         ani = FuncAnimation(fig, update, frames=min(frames, len(frames_data)), 
                         interval=interval, blit=True)
         
-        print(f"Saving CIM animation to {filename}...")
         ani.save(filename, writer='pillow', fps=1000/interval, dpi=100)
         plt.close(fig)
-        
-        try:
-            from IPython.display import Image
-            return Image(filename=filename)
-        except:
-            print(f"Animation saved to {filename}")
-        return None
 
 def compare_methods(L=20, rc=1.5, N_range=range(50, 1001, 50), M=10):
     cim_times = []
