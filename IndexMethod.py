@@ -145,11 +145,11 @@ class CellIndexMethod:
     def visualize(self):
         fig, ax = plt.subplots(figsize=(10, 10))
         
-        if hasattr(self, 'M'):
-            for i in range(self.M + 1):
-                ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
-                ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
-        
+
+        for i in range(self.M + 1):
+            ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+            ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+    
         for i in range(self.N):
             circle = patches.Circle(
                 self.positions[i], 
@@ -162,20 +162,29 @@ class CellIndexMethod:
                 ha='center', va='center', 
                 fontsize=8, color='black')
         
-        if hasattr(self, 'neighbors'):
-            for i in range(self.N):
-                for j in self.neighbors[i]:
-                    dx = self.positions[j, 0] - self.positions[i, 0]
-                    dy = self.positions[j, 1] - self.positions[i, 1]
+        for i in range(self.N):
+            for j in self.neighbors[i]:
+                if i < j:
+                    xi, yi = self.positions[i]
+                    xj, yj = self.positions[j]
                     
-                    dx -= round(dx / self.L) * self.L
-                    dy -= round(dy / self.L) * self.L
-                    
+                    dx = xj - xi
+                    dy = yj - yi
+                    dx_corr = dx - round(dx / self.L) * self.L
+                    dy_corr = dy - round(dy / self.L) * self.L
+
                     ax.plot(
-                        [self.positions[i, 0], self.positions[i, 0] + dx],
-                        [self.positions[i, 1], self.positions[i, 1] + dy],
+                        [xi, xi + dx_corr],
+                        [yi, yi + dy_corr],
                         'r-', alpha=0.3, linewidth=1
                     )
+                    
+                    if abs(dx_corr) != abs(dx) or abs(dy_corr) != abs(dy):
+                        ax.plot(
+                            [xj, xj - dx_corr],
+                            [yj, yj - dy_corr],
+                            'r-', alpha=0.3, linewidth=1
+                        )
         
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.L)
@@ -335,18 +344,23 @@ class CellIndexMethod:
                                 xi, yi, _, _ = frame_data[i]
                                 xj, yj, _, _ = frame_data[j]
                                 
-                                dx_pos = xj - xi
-                                dy_pos = yj - yi
-                                dx_pos -= round(dx_pos / self.L) * self.L
-                                dy_pos -= round(dy_pos / self.L) * self.L
+                                dx = xj - xi
+                                dy = yj - yi
+                                dx_corr = dx - round(dx / self.L) * self.L
+                                dy_corr = dy - round(dy / self.L) * self.L
                                 
-                                distance = (dx_pos**2 + dy_pos**2)**0.5
+                                distance = (dx_corr**2 + dy_corr**2)**0.5
                                 edge_distance = distance - (self.radii[i] + self.radii[j])
                                 
                                 if edge_distance < self.rc:
-                                    line, = ax.plot([xi, xi+dx_pos], [yi, yi+dy_pos],
+                                    line1, = ax.plot([xi, xi + dx_corr], [yi, yi + dy_corr],
                                                 'r-', alpha=0.3, lw=1)
-                                    neighbor_lines.append(line)
+                                    neighbor_lines.append(line1)
+                                    
+                                    if abs(dx_corr) != abs(dx) or abs(dy_corr) != abs(dy):
+                                        line2, = ax.plot([xj, xj - dx_corr], [yj, yj - dy_corr],
+                                                    'r-', alpha=0.3, lw=1)
+                                        neighbor_lines.append(line2)
             
             return particles + neighbor_lines
         
