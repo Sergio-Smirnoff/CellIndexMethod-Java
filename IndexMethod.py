@@ -364,11 +364,10 @@ if __name__ == "__main__":
     sim = CellIndexMethod(L, rc, N, M)
     
     sim.assign_to_cells()
-    sim.find_neighbors()
-    
     sim.save_static_info("static_data.txt")
     sim.save_dynamic_info("dynamic_data.txt", steps=20)
-    
+
+    sim.find_neighbors()
     sim.visualize()
     
     compare_methodsCells()
