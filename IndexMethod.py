@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.collections import LineCollection
 from matplotlib.animation import FuncAnimation
 from itertools import product
 import time
@@ -180,11 +181,12 @@ class CellIndexMethod:
         
         plt.savefig("fig1.png", dpi=150, bbox_inches='tight')
         plt.show()
-    
+        
     def animate_simulation_from_data(self, frames=50, interval=100, 
-                              dynamic_data="dynamic_data.txt", 
-                              static_data="static_data.txt", 
-                              filename="simulation_cim.gif"):
+                                dynamic_data="dynamic_data.txt", 
+                                static_data="static_data.txt", 
+                                filename="simulation_smooth.gif"):
+                                
         with open(static_data, 'r') as f:
             self.N = int(f.readline())
             self.L = float(f.readline())
@@ -194,56 +196,53 @@ class CellIndexMethod:
                 parts = f.readline().split()
                 self.radii.append(float(parts[0]))
                 self.colors.append([float(c)/255 for c in parts[1:4]])
-        
+
         with open(dynamic_data, 'r') as f:
             frames_data = []
             current_frame = []
             for line in f:
                 if line.startswith('t'):
                     if current_frame:
-                        frames_data.append(current_frame)
+                        frames_data.append(np.array(current_frame))
                         current_frame = []
                 else:
                     parts = list(map(float, line.split()))
                     current_frame.append(parts)
             if current_frame:
-                frames_data.append(current_frame)
-        
+                frames_data.append(np.array(current_frame))
+
         fig, ax = plt.subplots(figsize=(10, 10))
-        particles = []
-        neighbor_lines = []
-        
-        for i in range(self.N):
-            circle = patches.Circle((0, 0), self.radii[i], 
-                                color=self.colors[i], alpha=0.7)
-            ax.add_patch(circle)
-            particles.append(circle)
-        
-        for i in range(self.M+1):
-            ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
-            ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
-        
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.L)
         ax.set_aspect('equal')
-        ax.set_title(f"Simulation with CIM (N={self.N}, L={self.L}, rc={getattr(self, 'rc', '?')})")
+        ax.set_title(f"Simulation (N={self.N}, L={self.L}, rc={self.rc})")
+
+        for i in range(self.M + 1):
+            ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+            ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
+
+        particles = [patches.Circle((0, 0), self.radii[i], 
+                    color=self.colors[i], alpha=0.7) 
+                    for i in range(self.N)]
+        for p in particles:
+            ax.add_patch(p)
+
+        lines = LineCollection([], colors='red', alpha=0.3, linewidths=1)
+        ax.add_collection(lines)
 
         def update(frame_num):
-            frame_data = frames_data[frame_num % len(frames_data)]
+            frame = frames_data[frame_num % len(frames_data)]
             
-            for i, (x, y, _, _) in enumerate(frame_data):
+            for i, (x, y, _, _) in enumerate(frame):
                 particles[i].center = (x, y)
             
-            for line in neighbor_lines:
-                line.remove()
-            neighbor_lines.clear()
-            
+            segments = []
             cells = {}
             for i in range(self.M):
                 for j in range(self.M):
                     cells[(i, j)] = []
             
-            for idx, (x, y, _, _) in enumerate(frame_data):
+            for idx, (x, y, _, _) in enumerate(frame):
                 cell_x = int(x / self.cell_size) % self.M
                 cell_y = int(y / self.cell_size) % self.M
                 cells[(cell_x, cell_y)].append(idx)
@@ -257,33 +256,25 @@ class CellIndexMethod:
                     for i in particles_in_cell:
                         for j in cells.get((nx, ny), []):
                             if i < j:
-                                xi, yi, _, _ = frame_data[i]
-                                xj, yj, _, _ = frame_data[j]
+                                xi, yi, _, _ = frame[i]
+                                xj, yj, _, _ = frame[j]
                                 
-                                dx = xj - xi
-                                dy = yj - yi
-                                dx_corr = dx - round(dx / self.L) * self.L
-                                dy_corr = dy - round(dy / self.L) * self.L
+                                dx_pos = xj - xi
+                                dy_pos = yj - yi
+                                dx_pos -= round(dx_pos / self.L) * self.L
+                                dy_pos -= round(dy_pos / self.L) * self.L
                                 
-                                distance = (dx_corr**2 + dy_corr**2)**0.5
-                                edge_distance = distance - (self.radii[i] + self.radii[j])
-                                
-                                if edge_distance < self.rc:
-                                    line1, = ax.plot([xi, xi + dx_corr], [yi, yi + dy_corr],
-                                                'r-', alpha=0.3, lw=1)
-                                    neighbor_lines.append(line1)
-                                    
-                                    if abs(dx_corr) != abs(dx) or abs(dy_corr) != abs(dy):
-                                        line2, = ax.plot([xj, xj - dx_corr], [yj, yj - dy_corr],
-                                                    'r-', alpha=0.3, lw=1)
-                                        neighbor_lines.append(line2)
+                                distance = (dx_pos**2 + dy_pos**2)**0.5
+                                if distance - (self.radii[i] + self.radii[j]) < self.rc:
+                                    segments.append([(xi, yi), (xi + dx_pos, yi + dy_pos)])
             
-            return particles + neighbor_lines
-        
-        ani = FuncAnimation(fig, update, frames=min(frames, len(frames_data)), 
+            lines.set_segments(segments)
+            return particles + [lines]
+
+        ani = FuncAnimation(fig, update, frames=min(frames, len(frames_data)),
                         interval=interval, blit=True)
         
-        ani.save(filename, writer='pillow', fps=1000/interval, dpi=100)
+        ani.save(filename, writer='pillow', fps=30, dpi=100)
         plt.close(fig)
 
 def compare_methods(L=100, rc=3, N_range=range(50, 1001, 50), M=10):
@@ -366,7 +357,7 @@ if __name__ == "__main__":
     
     sim.assign_to_cells()
     sim.save_static_info("static_data.txt")
-    sim.save_dynamic_info("dynamic_data.txt", steps=20)
+    sim.save_dynamic_info("dynamic_data.txt", steps=200, dt=0.05)
 
     sim.find_neighbors()
     sim.visualize()
