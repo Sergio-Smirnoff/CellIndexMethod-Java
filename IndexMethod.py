@@ -351,8 +351,9 @@ def compare_methodsCells(L=20, rc=1.5, M_range=range(1, 20), N=100):
     plt.title('Comparación de métodos de detección de vecinos')
     plt.legend()
     plt.grid(True)
+    plt.savefig("fig2.png", dpi=150, bbox_inches='tight')
     plt.show()
-    plt.savefig("comparacion_metodos.png", dpi=150)
+
 
 if __name__ == "__main__":
     L = 20.0
