@@ -40,7 +40,6 @@ class CellIndexMethod:
         self.neighbors = {}
         
     def assign_to_cells(self):
-        """Asigna partículas a celdas"""
         self.cells = { (i,j): [] for i in range(self.M) for j in range(self.M) }
         
         for idx in range(self.N):
@@ -48,13 +47,12 @@ class CellIndexMethod:
             cell_x = int(x / self.cell_size)
             cell_y = int(y / self.cell_size)
             
-            # Aplicar condiciones periódicas de contorno
             cell_x = cell_x % self.M
             cell_y = cell_y % self.M
             
             self.cells[(cell_x, cell_y)].append(idx)
 
-    def find_neighbors(self, periodic=False, output_file=None):
+    def find_neighbors(self):
         self.neighbors = {i: [] for i in range(self.N)}
         
         self.cells = {}
@@ -66,46 +64,38 @@ class CellIndexMethod:
             cell_x = int(self.positions[idx, 0] / self.cell_size) % self.M
             cell_y = int(self.positions[idx, 1] / self.cell_size) % self.M
             self.cells[(cell_x, cell_y)].append(idx)
-
+        
         for (cell_x, cell_y), particles in self.cells.items():
             for dx, dy in [(-1,-1), (-1,0), (-1,1),
                         (0,-1), (0,0), (0,1),
                         (1,-1), (1,0), (1,1)]:
                 
-                nx, ny = cell_x + dx, cell_y + dy
-                if not (0 <= nx < self.M and 0 <= ny < self.M):
-                    continue
-                
-                neighbor_particles = self.cells.get((nx, ny), [])
+                neighbor_x = (cell_x + dx) % self.M
+                neighbor_y = (cell_y + dy) % self.M
                 
                 for i in particles:
-                    for j in neighbor_particles:
+                    for j in self.cells.get((neighbor_x, neighbor_y), []):
                         if i >= j:
                             continue
                         
                         dx_pos = self.positions[j, 0] - self.positions[i, 0]
-                        dy_pos = self.positions[j, 1] - self.positions[i, 1]                        
+                        dy_pos = self.positions[j, 1] - self.positions[i, 1]
                         dx_pos -= round(dx_pos / self.L) * self.L
                         dy_pos -= round(dy_pos / self.L) * self.L
-
-                        distance = np.sqrt(dx_pos**2 + dy_pos**2)
-                        edge_distance = distance - (self.radii[i] + self.radii[j])
                         
-                        if edge_distance < self.rc:
+                        distance = (dx_pos**2 + dy_pos**2)**0.5
+                        if distance - (self.radii[i] + self.radii[j]) < self.rc:
                             self.neighbors[i].append(j)
                             self.neighbors[j].append(i)
         
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write("Particle Neighbors List\n")
-                f.write(f"System Parameters: M={self.M}, rc={self.rc}, L={self.L}\n")
-                f.write(f"Periodic Boundaries: {periodic}\n")
-                f.write("\nParticle ID: Neighbors\n")
-                
-                for particle_id in sorted(self.neighbors.keys()):
-                    neighbors = sorted(self.neighbors[particle_id])
-                    f.write(f"{particle_id}: {neighbors}\n")
-            print(f"Neighbor list saved to {output_file}")
+        with open("vecinos.txt", 'w') as f:
+            f.write("Particle Neighbors List\n")
+            f.write(f"System Parameters: M={self.M}, rc={self.rc}, L={self.L}\n")
+            f.write("\nParticle ID: Neighbors\n")
+            
+            for particle_id in sorted(self.neighbors.keys()):
+                neighbors = sorted(self.neighbors[particle_id])
+                f.write(f"{particle_id}: {neighbors}\n")
             
     def brute_force_neighbors(self):
         neighbors = { i: [] for i in range(self.N) }
@@ -152,10 +142,10 @@ class CellIndexMethod:
                 self.assign_to_cells()
                 self.find_neighbors()
     
-    def visualize(self, show_neighbors=True, show_indices=True, show_grid=True, save_path=None):
+    def visualize(self):
         fig, ax = plt.subplots(figsize=(10, 10))
         
-        if show_grid and hasattr(self, 'M'):
+        if hasattr(self, 'M'):
             for i in range(self.M + 1):
                 ax.axhline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
                 ax.axvline(i * self.cell_size, color='gray', linestyle='--', alpha=0.3)
@@ -168,21 +158,24 @@ class CellIndexMethod:
                 alpha=0.7
             )
             ax.add_patch(circle)
-            
-            if show_indices:
-                ax.text(*self.positions[i], str(i), 
-                    ha='center', va='center', 
-                    fontsize=8, color='black')
+            ax.text(*self.positions[i], str(i), 
+                ha='center', va='center', 
+                fontsize=8, color='black')
         
-        if show_neighbors and hasattr(self, 'neighbors'):
+        if hasattr(self, 'neighbors'):
             for i in range(self.N):
                 for j in self.neighbors[i]:
-                    if i < j:
-                        ax.plot(
-                            [self.positions[i, 0], self.positions[j, 0]],
-                            [self.positions[i, 1], self.positions[j, 1]],
-                            'r-', alpha=0.3, linewidth=1
-                        )
+                    dx = self.positions[j, 0] - self.positions[i, 0]
+                    dy = self.positions[j, 1] - self.positions[i, 1]
+                    
+                    dx -= round(dx / self.L) * self.L
+                    dy -= round(dy / self.L) * self.L
+                    
+                    ax.plot(
+                        [self.positions[i, 0], self.positions[i, 0] + dx],
+                        [self.positions[i, 1], self.positions[i, 1] + dy],
+                        'r-', alpha=0.3, linewidth=1
+                    )
         
         ax.set_xlim(0, self.L)
         ax.set_ylim(0, self.L)
