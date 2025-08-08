@@ -26,9 +26,6 @@ class CellIndexMethod:
         self.min_square = 2*np.max(self.radii) + self.rc
         self.max_m = np.ceil(self.L / self.min_square)
 
-        if self.max_m >= self.M:
-            return None
-
         self.cells = {}
         self.neighbors = {}
         
@@ -355,19 +352,18 @@ if __name__ == "__main__":
     L = 20.0
     rc = 2.0
     N = 100
-    M = 5
+    M = 29
     
     sim = CellIndexMethod(L, rc, N, M)
-    if sim is None:
-        exit()
-    sim.assign_to_cells()
-    sim.save_static_info("static_data.txt")
-    sim.save_dynamic_info("dynamic_data.txt", steps=800, dt=0.05)
+    if sim.max_m >= sim.M:
+        sim.assign_to_cells()
+        sim.save_static_info("static_data.txt")
+        sim.save_dynamic_info("dynamic_data.txt", steps=800, dt=0.05)
 
-    sim.find_neighbors()
-    sim.visualize()
+        sim.find_neighbors()
+        sim.visualize()
     
-    compare_methods()
-    compare_methodsCells()
+        compare_methods()
+        compare_methodsCells()
     
-    ani2 = sim.animate_simulation_from_data()
+        ani2 = sim.animate_simulation_from_data()
