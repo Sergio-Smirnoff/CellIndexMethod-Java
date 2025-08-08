@@ -18,13 +18,17 @@ class CellIndexMethod:
         
         if self.cell_size < rc:
             print(f"Advertencia: Tamaño de celda ({self.cell_size}) menor que rc ({rc}).")
-            print("Recomendación: Reducir M para que L/M > rc")
         
         self.positions = np.random.rand(N, 2) * L
         self.velocities = (np.random.rand(N, 2) - 0.5) * 2
         self.radii = np.random.uniform(0.1, 0.3, N)
         self.colors = np.random.rand(N, 3)
-        
+        self.min_square = 2*np.max(self.radii) + self.rc
+        self.max_m = np.ceil(self.L / self.min_square)
+
+        if self.max_m >= self.M:
+            return None
+
         self.cells = {}
         self.neighbors = {}
         
@@ -354,7 +358,8 @@ if __name__ == "__main__":
     M = 5
     
     sim = CellIndexMethod(L, rc, N, M)
-    
+    if sim is None:
+        exit()
     sim.assign_to_cells()
     sim.save_static_info("static_data.txt")
     sim.save_dynamic_info("dynamic_data.txt", steps=800, dt=0.05)
