@@ -324,17 +324,18 @@ def compare_methodsCells(L=100, rc=3, M_range=range(1, 20), N=300):
         print(f"Probando con M = {M}...")
         sim = CellIndexMethod(L, rc, N, M)
         
-        start = time.time()
-        sim.assign_to_cells()
-        sim.find_neighbors()
-        cim_time = time.time() - start
-        cim_times.append(cim_time)
-        file.write(f"{M}\t{cim_time:.4f}\n")
+        if  sim.max_m >= sim.M:
+            start = time.time()
+            sim.assign_to_cells()
+            sim.find_neighbors()
+            cim_time = time.time() - start
+            cim_times.append(cim_time)
+            file.write(f"{M}\t{cim_time:.4f}\n")
 
-        start = time.time()
-        sim.brute_force_neighbors()
-        brute_time = time.time() - start
-        brute_times.append(brute_time)
+            start = time.time()
+            sim.brute_force_neighbors()
+            brute_time = time.time() - start
+            brute_times.append(brute_time)
     
     plt.figure(figsize=(10, 6))
     plt.plot(M_range, brute_times, 'r-', label='Fuerza Bruta (O(N²))')
@@ -352,7 +353,7 @@ if __name__ == "__main__":
     L = 20.0
     rc = 2.0
     N = 100
-    M = 29
+    M = 8
     
     sim = CellIndexMethod(L, rc, N, M)
     if sim.max_m >= sim.M:
@@ -363,7 +364,7 @@ if __name__ == "__main__":
         sim.find_neighbors()
         sim.visualize()
     
-        compare_methods()
-        compare_methodsCells()
+        compare_methods(L=L, M=M, rc=rc)
+        compare_methodsCells(L=L, N=N, rc=rc, M_range=range(1,int(sim.max_m+1)))
     
         ani2 = sim.animate_simulation_from_data()
